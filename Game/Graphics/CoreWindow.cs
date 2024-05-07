@@ -1,4 +1,5 @@
-﻿using Game.Events;
+﻿using Game.Assets;
+using Game.Events;
 using SDL;
 using System.Numerics;
 using static SDL.SDL;
@@ -24,6 +25,8 @@ namespace Game.Graphics
             _closeRequested = false;
 
             EventPoller.OnWindowClose += () => { _closeRequested = true; };
+
+            LoadIcon();
         }
 
         public void Dispose()
@@ -41,5 +44,14 @@ namespace Game.Graphics
         }
 
         public nint NativeWindowPointer => GetNativePointer();
+
+        private unsafe void LoadIcon()
+        {
+            byte[] source = ContentLoader.ReadBytes("win_icon");
+
+            SDL_Surface* surface = SDL_CreateSurfaceFrom(, 150, 150, 4, SDL_PixelFormatEnum.Rgba32);
+            SDL_SetWindowIcon(_window, surface);
+            SDL_DestroySurface(surface);
+        }
     }
 }

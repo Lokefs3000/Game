@@ -1,4 +1,6 @@
-﻿using Game.Events;
+﻿using Game.Assets;
+using Game.Config;
+using Game.Events;
 using Game.Graphics;
 using Serilog;
 using System;
@@ -6,11 +8,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Vortice.Mathematics;
 
 namespace Game.Core
 {
     internal class GameClass : IDisposable
     {
+        private ContentLoader _contentLoader;
         private CoreWindow _window;
         private GraphicsDeviceManager _deviceManager;
 
@@ -29,7 +33,8 @@ namespace Game.Core
 
             Log.Information("Initializing game..");
 
-            _window = new CoreWindow(1280, 720, "Game");
+            _contentLoader = new ContentLoader();
+            _window = new CoreWindow(StartupConfig.Config.WindowWidth, StartupConfig.Config.WindowHeight, "Game");
             _deviceManager = new GraphicsDeviceManager(_window);
         }
 
@@ -39,6 +44,7 @@ namespace Game.Core
 
             _deviceManager.Dispose();
             _window.Dispose();
+            _contentLoader.Dispose();
 
             Log.CloseAndFlush();
             GC.SuppressFinalize(this);
@@ -49,6 +55,9 @@ namespace Game.Core
             while (!_window.ShouldWindowClose)
             {
                 EventPoller.PollEvents();
+
+                _deviceManager.BindAndClearBackBuffer(new Color4(1.0f, 0.0f, 0.3f, 1.0f));
+
                 _deviceManager.SubmitAndPresent();
             }
         }

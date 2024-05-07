@@ -9,6 +9,8 @@ namespace Game.Config
 {
     internal class StartupConfig
     {
+        public static readonly StartupConfig Config = new StartupConfig();
+
         public readonly int WindowWidth;
         public readonly int WindowHeight;
         public readonly int RenderVSync;

@@ -11,6 +11,8 @@ using static Vortice.Direct3D11.D3D11;
 using static Vortice.DXGI.DXGI;
 using static SDL.SDL;
 using System.Numerics;
+using Game.Config;
+using Vortice.Mathematics;
 
 namespace Game.Graphics
 {
@@ -23,6 +25,8 @@ namespace Game.Graphics
         private ID3D11DeviceContext _deferred;
 
         private IDXGISwapChain1 _swapChain;
+        private ID3D11Texture2D _backBuffer;
+        private ID3D11RenderTargetView? _backBufferView;
 
         public GraphicsDeviceManager(CoreWindow _renderWindow)
         {
@@ -60,6 +64,9 @@ namespace Game.Graphics
                     AlphaMode = AlphaMode.Unspecified,
                     Flags = SwapChainFlags.None
                 });
+
+                _backBuffer = _swapChain.GetBuffer<ID3D11Texture2D>(0);
+                ResizeBuffers(_renderWindow.Size);
             }
             catch (Exception ex)
             {
@@ -79,6 +86,20 @@ namespace Game.Graphics
             GC.SuppressFinalize(this);
         }
 
+        public void ResizeBuffers(Vector2 size)
+        {
+            _backBufferView?.Dispose();
+            _swapChain.ResizeBuffers(2, (int)size.X, (int)size.Y);
+            _backBufferView = _device.CreateRenderTargetView(_backBuffer);
+            Debug.Assert(_backBufferView != null);
+        }
+
+        public void BindAndClearBackBuffer(Color4 color)
+        {
+            _deferred.OMSetRenderTargets(_backBufferView);
+            _deferred.ClearRenderTargetView(_backBufferView, in color);
+        }
+
         public void SubmitAndPresent()
         {
             try
@@ -95,7 +116,7 @@ namespace Game.Graphics
                 Log.Error(ex.Message);
             }
 
-            _swapChain.Present(1);
+            _swapChain.Present(StartupConfig.Config.RenderVSync);
         }
     }
 }

@@ -1,0 +1,10 @@
+{
+	"Files": [
+		{
+			"Path": "Content/icons/win_icon.png",
+			"Filtering": 0,
+			"Wrapping": 1,
+			"MipLevels": 0
+		}
+	]
+}
