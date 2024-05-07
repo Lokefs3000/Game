@@ -1,3 +1,16 @@
-﻿
-using var game = new test.Game1();
-game.Run();
+﻿using Game.Core;
+
+namespace Game
+{
+    public class Program
+    {
+        public static void Main(string[] args)
+        {
+            //create, run and dispoe of the game
+            using (GameClass game = new GameClass())
+            {
+                game.Run();
+            }
+        }
+    }
+}
