@@ -15,9 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="res\Content.bcf">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
+    <EmbeddedResource Include="res\Content.bcf" />
   </ItemGroup>
 
   <ItemGroup>
@@ -25,13 +23,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="res\startup.config">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </None>
+    <Folder Include="Interface\" />
+    <Folder Include="res\Content\" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="res\Content\models\" />
+    <None Update="deps\$(Configuration)\GTool.ME.Gui.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+	<None Update="deps\$(Configuration)\GTool.ME.Gui.pdb">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
