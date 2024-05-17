@@ -2,7 +2,9 @@
 using GTool.Debugging;
 using GTool.Graphics;
 using GTool.Graphics.GUI;
+using GTool.Scene;
 using GTool.Windowing;
+using Serilog;
 using System.Reflection;
 
 namespace GTool
@@ -10,9 +12,15 @@ namespace GTool
     public class GApplication : NativeWindow
     {
         public GraphicsDevice Device { get; private set; }
+        public SceneManager SceneManager { get; private set; }
 
         public GApplication(in string contentName, in WindowCreationSettings creationSettings) : base(creationSettings)
         {
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Debug()
+                .WriteTo.Console()
+                .CreateLogger();
+
             Device = new GraphicsDevice(new GraphicsDeviceSettings
             {
                 Window = this
@@ -22,6 +30,9 @@ namespace GTool
             ContentLoader.Initialize(contentName);
 
             Gui.Initialize();
+            Gui.Resize(WindowSize);
+
+            SceneManager = new SceneManager();
         }
 
         public override void Dispose()
@@ -30,8 +41,10 @@ namespace GTool
             Gui.Dispose();
             Device.Dispose();
             base.Dispose();
+            SceneManager.Dispose();
+            ContentManager.Dispose();
             ContentLoader.Dispose();
-            //Logger.Dispose(); //crashes AOT (ilc) for some reason??
+            //Logger.Dispose(); //crashes AOT (ilc.exe) for some reason??
         }
 
         public void Run()

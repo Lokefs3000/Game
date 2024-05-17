@@ -1,4 +1,6 @@
-﻿using System;
+﻿using K4os.Compression.LZ4;
+using Serilog;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -30,7 +32,7 @@ Length - ulong - 8 bytes
 
 -- FileData --
 Compressed - bool - 1 bytes
-OriginalSize - int - 4 bytes
+OriginalSize - int - 4 bytes -- if compressed
 Data - byte[] - ?? bytes
 
 */
@@ -62,7 +64,7 @@ namespace GTool.Content
 
                 ulong dataOffset = br.ReadUInt64();
                 br.BaseStream.Seek((long)dataOffset, SeekOrigin.Begin);
-                ReadDirectory(br, "");
+                ReadDirectory(br, $"{assembly.GetName().Name}/");
             }
         }
 
@@ -101,17 +103,37 @@ namespace GTool.Content
 
         public static byte[] GetBytes(string path)
         {
-            if (!_instance._files.TryGetValue(path, out FileData data))
+            if (_instance._files.TryGetValue(path, out FileData data))
             {
+                Stream? stream = _instance._streams[data.StreamId];
+                if (stream == null)
+                    throw new Exception("Too lazy to give actual errors currently..");
+
                 byte[] bytes = new byte[data.Size];
 
-                _instance._streams[data.StreamId]?.Seek((long)data.Offset, SeekOrigin.Begin);
-                _instance._streams[data.StreamId]?.Read(bytes, 0, bytes.Length);
+                stream.Seek((long)data.Offset, SeekOrigin.Begin);
+                using (BinaryReader br = new BinaryReader(stream, Encoding.UTF8, true))
+                {
+                    bool isCompressed = br.ReadBoolean();
+                    if (isCompressed)
+                    {
+                        int originalSize = br.ReadInt32();
+                        byte[] actual = new byte[originalSize];
+
+                        br.Read(bytes, 0, bytes.Length - 5);
+                        LZ4Codec.Decode(bytes, 0, bytes.Length - 5, actual, 0, actual.Length);
+
+                        bytes = actual;
+                    }
+                    else
+                        br.Read(bytes, 0, bytes.Length - 1);
+                }
 
                 return bytes;
             }
 
-            throw new FileNotFoundException("Failed to find path!");
+            Log.Error("Failed to find path: \"{@Path}\"", path);
+            return Array.Empty<byte>();
         }
 
         public static string GetString(string path) => Encoding.UTF8.GetString(GetBytes(path));

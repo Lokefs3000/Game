@@ -37,12 +37,28 @@ Data - byte[] - ?? bytes
 
 namespace GTool.CB
 {
-    internal class BCFWriter
+    internal static class BCFWriter
     {
         public const ushort Version = 1;
 
         public static void WriteBCF(Stream stream, TreeNode content, TreeNode external)
         {
+            LZ4Level codecLevel = LZ4Level.L00_FAST;
+            switch (FilePostProcess.Quality)
+            {
+                case FilePostProcess.ProcessQuality.Medium:
+                    codecLevel = LZ4Level.L04_HC;
+                    break;
+                case FilePostProcess.ProcessQuality.High:
+                    codecLevel = LZ4Level.L07_HC;
+                    break;
+                case FilePostProcess.ProcessQuality.Max:
+                    codecLevel = LZ4Level.L12_MAX;
+                    break;
+                default:
+                    break;
+            }
+
             using (BinaryWriter bw = new BinaryWriter(stream, Encoding.UTF8, true))
             {
                 List<FileData> fileDatas = new List<FileData>();
@@ -62,17 +78,19 @@ namespace GTool.CB
                     if (fileData.IsDirectory || fileData.IsFake)
                         continue;
 
-                    byte[] source = File.ReadAllBytes(fileData.FullPath);
-                    int maxSize = LZ4Codec.MaximumOutputSize(source.Length);
+                    string path = fileData.PPFPath == null ? fileData.FullPath : fileData.PPFPath;
+
+                    byte[] source = File.ReadAllBytes(path);
+                    int maxSize = LZ4Codec.MaximumOutputSize(source.Length) - (fileData.PPFPath == null ? 0 : sizeof(long) + 1);
                     byte[] compressed = new byte[maxSize];
-                    int actualSize = LZ4Codec.Encode(source, 0, source.Length, compressed, 0, maxSize);
+                    int actualSize = LZ4Codec.Encode(source, fileData.PPFPath == null ? 0 : sizeof(long) + 1, source.Length - (fileData.PPFPath == null ? 0 : sizeof(long) + 1), compressed, 0, maxSize, codecLevel);
 
                     if (actualSize >= source.Length || actualSize == -1 /*failed*/) //if so then compression is obviously not worth it!
                     {
                         bw.Write(false);
-                        bw.Write(source.Length); //unused when not compressed
+                        //bw.Write(source.Length); //unused when not compressed
                         bw.Write(source);
-                        fileSizes.Add(fileData.FullPath, source.LongLength);
+                        fileSizes.Add(fileData.FullPath, source.LongLength - (fileData.PPFPath == null ? 0 : sizeof(long) + 1));
                     }
                     else
                     {
@@ -88,7 +106,7 @@ namespace GTool.CB
                 bw.Write(recordedOffset);
 
                 bw.Seek(0, SeekOrigin.End);
-                recordedOffset = 8; //actually used now
+                recordedOffset = 14; //actually used now
                 WriteDirectory(bw, fileDatas, fileSizes, ref recordedOffset, content);
                 //WriteDirectory(bw, fileDatas, fileSizes, ref recordedOffset, external);
             }

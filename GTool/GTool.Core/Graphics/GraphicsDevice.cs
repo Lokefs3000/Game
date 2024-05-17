@@ -8,6 +8,9 @@ using Vortice.Direct3D11.Debug;
 using Vortice.DXGI.Debug;
 using GTool.Windowing;
 using Vortice.Mathematics;
+using GTool.Graphics.Content;
+using SharpGen.Runtime;
+using Serilog;
 
 namespace GTool.Graphics
 {
@@ -24,6 +27,9 @@ namespace GTool.Graphics
         private IDXGISwapChain1? _swapChain;
         private ID3D11Texture2D? _backBuffer;
         private ID3D11RenderTargetView? _backBufferView;
+        private Viewport _viewport;
+
+        private ID3D11RasterizerState? _rasterizerState;
 
         private bool _disposed;
 
@@ -63,6 +69,8 @@ namespace GTool.Graphics
                 });
 
                 ResizeBuffers(settings.Window.WindowSize);
+
+                _rasterizerState = Device?.CreateRasterizerState(RasterizerDescription.CullNone);
             }
             catch (Exception ex)
             {
@@ -80,15 +88,24 @@ namespace GTool.Graphics
         {
             _backBuffer?.Release();
             _backBufferView?.Release();
-            _swapChain?.ResizeBuffers(2, (int)size.Width, (int)size.Height);
+
+            Result? res = _swapChain?.ResizeBuffers(2, (int)size.Width, (int)size.Height);
+            if (res != null && res.Value.Failure && res.Value.Code == unchecked((int)0x887A0005)/*DXGI_ERROR_DEVICE_REMOVED*/)
+            {
+                HandleDeviceLost();
+                throw new ApplicationException("Device lost!");
+            }
+
             _backBuffer = _swapChain?.GetBuffer<ID3D11Texture2D>(0);
             _backBufferView = Device?.CreateRenderTargetView(_backBuffer);
+            _viewport = new Viewport(size.Width, size.Height);
         }
 
         public void Dispose()
         {
             if (!_disposed)
             {
+                _rasterizerState?.Dispose();
                 _swapChain?.Dispose();
 
                 Deferred?.Dispose();
@@ -140,17 +157,79 @@ namespace GTool.Graphics
 
         internal void Present()
         {
-            ID3D11CommandList? cmd = Deferred?.FinishCommandList(false);
-            if (cmd != null)
+            try
             {
-                Immediate?.ExecuteCommandList(cmd, true);
-                cmd.Release();
+                ID3D11CommandList? cmd = Deferred?.FinishCommandList(false);
+                if (cmd != null)
+                {
+                    Immediate?.ExecuteCommandList(cmd, true);
+                    cmd.Release();
+                }
             }
-            _swapChain?.Present(1);
+            catch (Exception ex)
+            {
+                Log.Error("Exception occured in present call! Message: {@Message}", ex.Message);
+            }
+
+            Result? res = _swapChain?.Present(1);
+            if (res != null && res.Value.Failure && res.Value.Code == unchecked((int)0x887A0005)/*DXGI_ERROR_DEVICE_REMOVED*/)
+            {
+                HandleDeviceLost();
+                throw new ApplicationException("Device lost!");
+            }
+
+            //theoreticly the next frame begins here..
+            Deferred?.RSSetState(_rasterizerState);
+            RestoreDefaultDrawViews();
+            Deferred?.ClearRenderTargetView(_backBufferView, new Color4(1.0f, 0.5f, 0.0f, 1.0f));
+        }
+
+        private void HandleDeviceLost()
+        {
+            if (IsDebug)
+            {
+                Log.Error("Device was removed! Code: {@Code}", Device?.DeviceRemovedReason.ToString());
+            }
+            else
+#pragma warning disable CS0162 // Unreachable code detected
+                Log.Warning("Extended debug info is unavailable because debugging is not available!");
+#pragma warning restore CS0162 // Unreachable code detected
         }
 
         public static void Draw(int vertexCount, int startVertexLocation) => Instance.Deferred?.Draw(vertexCount, startVertexLocation);
         public static void DrawIndexed(int indexCount, int startIndexLocation, int baseVertexLocation) => Instance.Deferred?.DrawIndexed(indexCount, startIndexLocation, baseVertexLocation);
+
+        public static void SetVertexBuffer<TType>(Buffer<TType> buffer)
+            where TType : unmanaged => Instance.Deferred?.IASetVertexBuffer(0, buffer.InternalBuffer, buffer.Stride);
+        public static void SetIndexBuffer<TType>(Buffer<TType> buffer, Format format)
+            where TType : unmanaged => Instance.Deferred?.IASetIndexBuffer(buffer.InternalBuffer, format, 0);
+
+        public static void SetActiveShader(ID3D11VertexShader vshader, ID3D11PixelShader pshader, ID3D11InputLayout layout)
+        {
+            Instance.Deferred?.VSSetShader(vshader);
+            Instance.Deferred?.PSSetShader(pshader);
+            Instance.Deferred?.IASetInputLayout(layout);
+        }
+
+        public static void VSetConstantBuffer<TType>(Buffer<TType>? buffer, int slot = 0)
+            where TType : unmanaged => Instance.Deferred?.VSSetConstantBuffer(slot, buffer?.InternalBuffer);
+        public static void PSetConstantBuffer<TType>(Buffer<TType>? buffer, int slot = 0)
+            where TType : unmanaged => Instance.Deferred?.PSSetConstantBuffer(slot, buffer?.InternalBuffer);
+
+        public static void SetTopology(PrimitiveTopology topology) => Instance.Deferred?.IASetPrimitiveTopology(topology);
+
+        public static void RestoreDefaultDrawViews()
+        {
+            Instance.Deferred?.RSSetViewport(Instance._viewport);
+            Instance.Deferred?.OMSetRenderTargets(Instance._backBufferView);
+        }
+
+        internal static void FillShaderData(ref Shader.ShaderDataAsset data, byte[] vbytes, byte[] pbytes, InputElementDescription[] inputs)
+        {
+            data.VertexShader = Instance.Device?.CreateVertexShader(vbytes);
+            data.PixelShader = Instance.Device?.CreatePixelShader(pbytes);
+            data.InputLayout = Instance.Device?.CreateInputLayout(inputs, vbytes);
+        }
     }
 
     public struct GraphicsDeviceSettings

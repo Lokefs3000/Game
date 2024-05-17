@@ -15,18 +15,22 @@ namespace GTool.Graphics
         private ID3D11Buffer? _buffer;
         private int _size;
         private BindFlags _flags;
+        private int _stride;
 
+        public ID3D11Buffer? InternalBuffer { get => _buffer; }
         public int Size { get => _size; }
+        public int Stride { get => _stride; }
 
         public Buffer(int size, BindFlags bind)
         {
             _size = size;
             _flags = bind;
+            _stride = Marshal.SizeOf<TType>();
 
             _buffer = GraphicsDevice.Instance.Device?.CreateBuffer(new BufferDescription
             {
                 BindFlags = bind,
-                ByteWidth = size * Marshal.SizeOf<TType>(),
+                ByteWidth = size * _stride,
                 CPUAccessFlags = CpuAccessFlags.None,
                 MiscFlags = ResourceOptionFlags.None,
                 StructureByteStride = 0,
@@ -44,9 +48,7 @@ namespace GTool.Graphics
             if (_buffer == null)
                 return;
 
-            int usize = Marshal.SizeOf<TType>();
-            int asize = Marshal.SizeOf<TType>();
-            GraphicsDevice.Instance.Deferred?.UpdateSubresource(data, _buffer, 0, Math.Min(usize, asize));
+            GraphicsDevice.Instance.Deferred?.UpdateSubresource(data, _buffer, 0, _stride);
         }
 
         public void Bind()

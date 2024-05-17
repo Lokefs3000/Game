@@ -1,4 +1,1 @@
-﻿{
-	"Files": [
-	]
-}
+{"Files":["shaders/gui.hlsl"]}

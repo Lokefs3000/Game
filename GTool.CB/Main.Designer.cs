@@ -42,7 +42,14 @@
             TreeImageList = new ImageList(components);
             MainWindowMStrip = new MenuStrip();
             fileToolStripMenuItem = new ToolStripMenuItem();
+            newToolStripMenuItem = new ToolStripMenuItem();
+            openToolStripMenuItem = new ToolStripMenuItem();
+            saveToolStripMenuItem = new ToolStripMenuItem();
+            saveAsToolStripMenuItem = new ToolStripMenuItem();
+            toolStripMenuItem2 = new ToolStripSeparator();
+            exitToolStripMenuItem = new ToolStripMenuItem();
             buildToolStripMenuItem = new ToolStripMenuItem();
+            textBox1 = new TextBox();
             TreeContentMStripLarge = new ContextMenuStrip(components);
             addToolStripMenuItem = new ToolStripMenuItem();
             fileToolStripMenuItem2 = new ToolStripMenuItem();
@@ -56,9 +63,11 @@
             removeToolStripMenuItem1 = new ToolStripMenuItem();
             AddFileDialog = new OpenFileDialog();
             OpenDBFile = new OpenFileDialog();
+            SaveDBFile = new SaveFileDialog();
             TreeContentMStripSmall.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)splitContainer1).BeginInit();
             splitContainer1.Panel1.SuspendLayout();
+            splitContainer1.Panel2.SuspendLayout();
             splitContainer1.SuspendLayout();
             MainWindowMStrip.SuspendLayout();
             TreeContentMStripLarge.SuspendLayout();
@@ -108,6 +117,10 @@
             // 
             splitContainer1.Panel1.Controls.Add(FileTree);
             splitContainer1.Panel1.Controls.Add(MainWindowMStrip);
+            // 
+            // splitContainer1.Panel2
+            // 
+            splitContainer1.Panel2.Controls.Add(textBox1);
             splitContainer1.Size = new Size(1260, 732);
             splitContainer1.SplitterDistance = 420;
             splitContainer1.TabIndex = 1;
@@ -171,9 +184,50 @@
             // 
             // fileToolStripMenuItem
             // 
+            fileToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { newToolStripMenuItem, openToolStripMenuItem, saveToolStripMenuItem, saveAsToolStripMenuItem, toolStripMenuItem2, exitToolStripMenuItem });
             fileToolStripMenuItem.Name = "fileToolStripMenuItem";
             fileToolStripMenuItem.Size = new Size(37, 20);
             fileToolStripMenuItem.Text = "File";
+            // 
+            // newToolStripMenuItem
+            // 
+            newToolStripMenuItem.Name = "newToolStripMenuItem";
+            newToolStripMenuItem.Size = new Size(112, 22);
+            newToolStripMenuItem.Text = "New";
+            newToolStripMenuItem.Click += MenubarFileNewAction;
+            // 
+            // openToolStripMenuItem
+            // 
+            openToolStripMenuItem.Name = "openToolStripMenuItem";
+            openToolStripMenuItem.Size = new Size(112, 22);
+            openToolStripMenuItem.Text = "Open";
+            openToolStripMenuItem.Click += MenubarFileOpenAction;
+            // 
+            // saveToolStripMenuItem
+            // 
+            saveToolStripMenuItem.Name = "saveToolStripMenuItem";
+            saveToolStripMenuItem.Size = new Size(112, 22);
+            saveToolStripMenuItem.Text = "Save";
+            saveToolStripMenuItem.Click += MenubarFileSaveAction;
+            // 
+            // saveAsToolStripMenuItem
+            // 
+            saveAsToolStripMenuItem.Name = "saveAsToolStripMenuItem";
+            saveAsToolStripMenuItem.Size = new Size(112, 22);
+            saveAsToolStripMenuItem.Text = "Save as";
+            saveAsToolStripMenuItem.Click += MenubarFileSaveAsAction;
+            // 
+            // toolStripMenuItem2
+            // 
+            toolStripMenuItem2.Name = "toolStripMenuItem2";
+            toolStripMenuItem2.Size = new Size(109, 6);
+            // 
+            // exitToolStripMenuItem
+            // 
+            exitToolStripMenuItem.Name = "exitToolStripMenuItem";
+            exitToolStripMenuItem.Size = new Size(112, 22);
+            exitToolStripMenuItem.Text = "Exit";
+            exitToolStripMenuItem.Click += MenubarFileExitAction;
             // 
             // buildToolStripMenuItem
             // 
@@ -181,6 +235,17 @@
             buildToolStripMenuItem.Size = new Size(46, 20);
             buildToolStripMenuItem.Text = "Build";
             buildToolStripMenuItem.Click += BuildContent;
+            // 
+            // textBox1
+            // 
+            textBox1.BackColor = SystemColors.Window;
+            textBox1.Dock = DockStyle.Fill;
+            textBox1.Location = new Point(0, 0);
+            textBox1.Multiline = true;
+            textBox1.Name = "textBox1";
+            textBox1.ReadOnly = true;
+            textBox1.Size = new Size(836, 732);
+            textBox1.TabIndex = 0;
             // 
             // TreeContentMStripLarge
             // 
@@ -264,6 +329,11 @@
             OpenDBFile.DefaultExt = "cbdb";
             OpenDBFile.Filter = "Database files|*.cbdb";
             // 
+            // SaveDBFile
+            // 
+            SaveDBFile.DefaultExt = "cbdb";
+            SaveDBFile.Filter = "Database files|*.cbdb";
+            // 
             // Main
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -276,6 +346,8 @@
             TreeContentMStripSmall.ResumeLayout(false);
             splitContainer1.Panel1.ResumeLayout(false);
             splitContainer1.Panel1.PerformLayout();
+            splitContainer1.Panel2.ResumeLayout(false);
+            splitContainer1.Panel2.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)splitContainer1).EndInit();
             splitContainer1.ResumeLayout(false);
             MainWindowMStrip.ResumeLayout(false);
@@ -310,5 +382,13 @@
         private ToolStripMenuItem newFolderToolStripMenuItem;
         private ToolStripMenuItem newFolderToolStripMenuItem1;
         private ToolStripMenuItem buildToolStripMenuItem;
+        private ToolStripMenuItem newToolStripMenuItem;
+        private ToolStripMenuItem openToolStripMenuItem;
+        private ToolStripMenuItem saveToolStripMenuItem;
+        private ToolStripMenuItem saveAsToolStripMenuItem;
+        private ToolStripSeparator toolStripMenuItem2;
+        private ToolStripMenuItem exitToolStripMenuItem;
+        private SaveFileDialog SaveDBFile;
+        private TextBox textBox1;
     }
 }

@@ -13,5 +13,7 @@ namespace GTool.CB
 
         public bool IsDirectory;
         public bool IsFake;
+
+        public string? PPFPath;
     }
 }
