@@ -1,0 +1,44 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PublishAot>false</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GTool\GTool.Core\GTool.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="res\Editor\fonts\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="res\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="res\ed\**" />
+    <Content Remove="res\ed\**" />
+    <EmbeddedResource Remove="res\ed\**" />
+    <None Remove="res\ed\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SpaceWizards.SharpFont" Version="1.0.2" />
+    <PackageReference Include="Vortice.D3DCompiler" Version="3.5.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="freetype6.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

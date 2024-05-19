@@ -11,18 +11,25 @@ using Vortice.DXGI;
 
 namespace GTool.Content
 {
-    internal class ContentManager
+    public class ContentManager : IDisposable
     {
-        private static readonly Dictionary<string, IVirtualAsset?> _assets = new Dictionary<string, IVirtualAsset?>();
+        protected static ContentManager _instance;
 
-        internal static void Dispose()
+        protected static readonly Dictionary<string, IVirtualAsset?> _assets = new Dictionary<string, IVirtualAsset?>();
+
+        public ContentManager()
+        {
+            _instance = this;
+        }
+
+        public void Dispose()
         {
             foreach (var asset in _assets.Values)
                 asset.Dispose();
             _assets.Clear();
         }
 
-        internal static Shader GetOrCreateShader(string path)
+        protected virtual Shader GetOrCreateShader(string path)
         {
             if (_assets.TryGetValue(path, out IVirtualAsset? shader))
             {
@@ -67,14 +74,31 @@ namespace GTool.Content
             return new Shader(data);
         }
 
-        internal static void Remove(string path)
+        protected virtual Font GetOrCreateFont(string path)
+        {
+            if (_assets.TryGetValue(path, out IVirtualAsset? shader))
+            {
+                if (shader == null || shader?.Type != AssetType.Shader)
+                    throw new InvalidOperationException("Invalid virtual asset handle!");
+                else
+                    return new Font((Font.FontDataAsset?)shader);
+            }
+
+            throw new NotImplementedException();
+        }
+
+        protected virtual void RemoveAsset(string path)
         {
             Log.Debug($"Removing asset: \"{path}\"");
             if (_assets.ContainsKey(path))
                 _assets.Remove(path);
         }
 
-        internal interface IVirtualAsset : IDisposable
+        public static Shader GetShader(string path) => _instance.GetOrCreateShader(path);
+        public static Font GetFont(string path) => _instance.GetOrCreateFont(path);
+        public static void Remove(string path) => _instance.RemoveAsset(path);
+
+        public interface IVirtualAsset : IDisposable
         {
             public AssetType Type { get; }
             public string Name { get; set; }
@@ -89,6 +113,7 @@ namespace GTool.Content
         Shader,
         Texture2D,
         TextureCube,
-        Mesh
+        Mesh,
+        Font
     }
 }

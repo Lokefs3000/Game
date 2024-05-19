@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "GEditor": {
+      "commandName": "Project",
+      "commandLineArgs": "-edopen ../../../../GameProject"
+    }
+  }
+}

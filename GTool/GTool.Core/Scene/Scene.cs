@@ -11,9 +11,11 @@ namespace GTool.Scene
     {
         public List<Actor> Actors = new List<Actor>();
 
-        internal Scene()
-        {
+        public readonly string Name;
 
+        internal Scene(string name)
+        {
+            Name = name;
         }
 
         public void Dispose()

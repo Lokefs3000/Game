@@ -1,10 +1,14 @@
 ﻿using GTool.Debugging;
+using GTool.Input;
 using System.Runtime.InteropServices;
+using static GTool.Windowing.IWindowProtocol;
 
 namespace GTool.Windowing
 {
     internal class Win32Protocol : IWindowProtocol
     {
+        private static Win32Protocol _instance;
+
         private bool _isClassRegistered = false;
         private int _windowsCreated = 0;
         private nint _moduleHandle = nint.Zero;
@@ -23,6 +27,16 @@ namespace GTool.Windowing
 
         public static event IWindowProtocol.WindowEvent? WindowClosed;
 
+        public event IWindowProtocol.WindowResizeEvent? WindowResize;
+
+        public event IWindowProtocol.MouseMoveEvent? MouseMove;
+        public event IWindowProtocol.MouseButtonEvent? MouseButton;
+
+        public Win32Protocol()
+        {
+            _instance = this;
+        }
+
         public nint CreateWindow(in WindowCreationSettings settings)
         {
             if (_windowProc == null)
@@ -31,7 +45,7 @@ namespace GTool.Windowing
             }
             if (_moduleHandle == nint.Zero)
             {
-                _moduleHandle = Interop.GetModuleHandleW(null);
+                _moduleHandle = Marshal.GetHINSTANCE(typeof(Win32Protocol).Module);
             }
             if (!_isClassRegistered)
             {
@@ -44,15 +58,20 @@ namespace GTool.Windowing
             }
             _windowsCreated++;
 
+            ulong style = GetStyleFromFlags(settings.Flags);
+
+            RECT rect = new RECT { left = 0, top = 0, right = settings.Width, bottom = settings.Height };
+            Logger.Assert(Interop.AdjustWindowRectEx(ref rect, style, true, 0)); //might not actually be working 100%
+
             nint window = Interop.CreateWindowExW(
                 0,
                 CLASSNAME,
                 settings.Title,
-                GetStyleFromFlags(settings.Flags),
+                style,
                 CW_USEDEFAULT,
                 CW_USEDEFAULT,
-                settings.Width,
-                settings.Height,
+                (int)(rect.right - rect.left) + 8/*bad win32 fix*/,
+                (int)(rect.bottom - rect.top) + 47,
                 nint.Zero,
                 nint.Zero,
                 _moduleHandle,
@@ -103,6 +122,18 @@ namespace GTool.Windowing
 
         private const int WM_DESTROY = 2;
         private const int WM_CLOSE = 16;
+        private const int WM_MOUSEMOVE = 512;
+        private const int WM_LBUTTONDOWN = 513;
+        private const int WM_LBUTTONUP = 514;
+        private const int WM_MBUTTONDOWN = 519;
+        private const int WM_MBUTTONUP = 520;
+        private const int WM_RBUTTONDOWN = 516;
+        private const int WM_RBUTTONUP = 517;
+        private const int WM_SIZE = 5;
+
+        private const int MK_LBUTTON = 1;
+        private const int MK_MBUTTON = 16;
+        private const int MK_RBUTTON = 2;
 
         private static nint WindowProc(nint hWnd, uint uMsg, nint wParam, nint lParam)
         {
@@ -119,10 +150,53 @@ namespace GTool.Windowing
                         Interop.PostQuitMessage(0);
                         return 0;
                     }
+                case WM_MOUSEMOVE:
+                    {
+                        _instance.MouseMove?.Invoke((float)GET_X_LPARAM(lParam), (float)GET_Y_LPARAM(lParam));
+                        return 0;
+                    }
+                case WM_LBUTTONDOWN:
+                    {
+                        _instance.MouseButton?.Invoke(InputManager.MouseButton.Left, true);
+                        return 0;
+                    }
+                case WM_LBUTTONUP:
+                    {
+                        _instance.MouseButton?.Invoke(InputManager.MouseButton.Left, false);
+                        return 0;
+                    }
+                case WM_MBUTTONDOWN:
+                    {
+                        _instance.MouseButton?.Invoke(InputManager.MouseButton.Middle, true);
+                        return 0;
+                    }
+                case WM_MBUTTONUP:
+                    {
+                        _instance.MouseButton?.Invoke(InputManager.MouseButton.Middle, false);
+                        return 0;
+                    }
+                case WM_RBUTTONDOWN:
+                    {
+                        _instance.MouseButton?.Invoke(InputManager.MouseButton.Right, true);
+                        return 0;
+                    }
+                case WM_RBUTTONUP:
+                    {
+                        _instance.MouseButton?.Invoke(InputManager.MouseButton.Right, false);
+                        return 0;
+                    }
+                case WM_SIZE:
+                    {
+                        _instance.WindowResize?.Invoke(GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+                        return 0;
+                    }
                 default:
                     return Interop.DefWindowProcW(hWnd, uMsg, wParam, lParam);
             }
         }
+
+        private static int GET_X_LPARAM(nint lParam) => (int)lParam & 0xFFFF;
+        private static int GET_Y_LPARAM(nint lParam) => (int)(lParam >> 16) & 0xFFFF;
 
         internal class Interop
         {
@@ -158,6 +232,9 @@ namespace GTool.Windowing
 
             [DllImport("user32.dll", CallingConvention = CallingConvention.StdCall)]
             public static extern nint DispatchMessageW([In] ref MSG lpMsg);
+
+            [DllImport("user32.dll", CallingConvention = CallingConvention.StdCall)]
+            public static extern bool AdjustWindowRectEx([In][Out] ref RECT lpRect, ulong dwStyle, bool bMenu, ulong dwExStyle);
         }
 
         [StructLayout(LayoutKind.Sequential)]
@@ -190,8 +267,17 @@ namespace GTool.Windowing
         [StructLayout(LayoutKind.Sequential)]
         internal struct POINT
         {
-            long X;
-            long Y;
+            public long X;
+            public long Y;
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        internal struct RECT
+        {
+            public long left;
+            public long top;
+            public long right;
+            public long bottom;
         }
 
         internal delegate nint WNDPROC(nint hWnd, uint uMsg, nint wParam, nint lParam);

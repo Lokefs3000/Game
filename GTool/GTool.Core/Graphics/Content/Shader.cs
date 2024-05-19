@@ -16,7 +16,7 @@ namespace GTool.Graphics.Content
 
         public bool IsValid { get { return _valid; } }
 
-        internal Shader(ShaderDataAsset? data)
+        public Shader(ShaderDataAsset? data)
         {
             _data = data;
             _valid = data == null || data.InputLayout != null && data.VertexShader != null && data.PixelShader != null;
@@ -35,7 +35,7 @@ namespace GTool.Graphics.Content
                 GraphicsDevice.SetActiveShader(_data?.VertexShader, _data?.PixelShader, _data?.InputLayout);
         }
 
-        internal class ShaderDataAsset : ContentManager.IVirtualAsset
+        public class ShaderDataAsset : ContentManager.IVirtualAsset
         {
             public AssetType Type => AssetType.Shader;
             public string Name { get => _name; set => _name = value; }
@@ -55,13 +55,13 @@ namespace GTool.Graphics.Content
 
             public void Dispose()
             {
-                uint ref1 = VertexShader?.Release() ?? 0;
-                uint ref2 = PixelShader?.Release() ?? 0;
-                uint ref3 = InputLayout?.Release() ?? 0;
+                uint ref1 = VertexShader?.Release() ?? 1;
+                uint ref2 = PixelShader?.Release() ?? 1;
+                uint ref3 = InputLayout?.Release() ?? 1;
 
                 if (ref1 != ref2 || ref1 != ref3 || ref2 != ref3)
                     Log.Error("Inconsistant reference on shader resources!");
-                if (ref1 == 0)
+                if (ref1 <= 1)
                     ContentManager.Remove(Name);
             }
         }

@@ -21,6 +21,8 @@ namespace GTool.Graphics
         private IDXGIFactory3? _factory;
         public ID3D11Device? Device;
 
+        private ID3D11InfoQueue? _infoQueue;
+
         public ID3D11DeviceContext? Immediate { get; private set; }
         public ID3D11DeviceContext? Deferred { get; private set; }
 
@@ -50,6 +52,13 @@ namespace GTool.Graphics
                 _factory = CreateDXGIFactory2<IDXGIFactory3>(IsDebug);
                 Device = D3D11CreateDevice(DriverType.Hardware, IsDebug ? DeviceCreationFlags.Debug : DeviceCreationFlags.None, FeatureLevel.Level_11_0, FeatureLevel.Level_11_1);
 
+                if (IsDebug)
+                {
+                    _infoQueue = Device.QueryInterfaceOrNull<ID3D11InfoQueue>();
+                    if (_infoQueue == null)
+                        Log.Warning("Failed to get D3D11 info queue!");
+                }
+
                 Immediate = Device?.ImmediateContext;
                 Deferred = Device?.CreateDeferredContext();
 
@@ -63,14 +72,14 @@ namespace GTool.Graphics
                     BufferUsage = Usage.RenderTargetOutput,
                     BufferCount = 2,
                     Scaling = Scaling.None,
-                    SwapEffect = SwapEffect.FlipDiscard,
+                    SwapEffect = SwapEffect.FlipSequential,
                     AlphaMode = AlphaMode.Unspecified,
                     Flags = SwapChainFlags.None
                 });
 
                 ResizeBuffers(settings.Window.WindowSize);
 
-                _rasterizerState = Device?.CreateRasterizerState(RasterizerDescription.CullNone);
+                _rasterizerState = Device?.CreateRasterizerState(RasterizerDescription.CullBack);
             }
             catch (Exception ex)
             {
@@ -86,31 +95,56 @@ namespace GTool.Graphics
 
         internal void ResizeBuffers(Size size)
         {
-            _backBuffer?.Release();
-            _backBufferView?.Release();
-
-            Result? res = _swapChain?.ResizeBuffers(2, (int)size.Width, (int)size.Height);
-            if (res != null && res.Value.Failure && res.Value.Code == unchecked((int)0x887A0005)/*DXGI_ERROR_DEVICE_REMOVED*/)
+            try
             {
-                HandleDeviceLost();
-                throw new ApplicationException("Device lost!");
-            }
+                uint r1 = _backBuffer?.Release() ?? 0;
+                uint r2 = _backBufferView?.Release() ?? 0;
 
-            _backBuffer = _swapChain?.GetBuffer<ID3D11Texture2D>(0);
-            _backBufferView = Device?.CreateRenderTargetView(_backBuffer);
-            _viewport = new Viewport(size.Width, size.Height);
+                if (r1 != 0 || r2 != 0)
+                {
+                    Log.Error("A swapchain resource has not properly been released for resize!");
+                    return;
+                }
+
+                _backBuffer = null;
+                _backBufferView = null;
+
+                Result? res = _swapChain?.ResizeBuffers(2, (int)size.Width, (int)size.Height);
+                if (res != null && res.Value.Failure)
+                {
+                    if (res.Value.Code == unchecked((int)0x887A0005)/*DXGI_ERROR_DEVICE_REMOVED*/)
+                    {
+                        HandleDeviceLost();
+                    }
+
+                    res?.CheckError();
+                }
+
+                _backBuffer = _swapChain?.GetBuffer<ID3D11Texture2D>(0);
+                _backBufferView = Device?.CreateRenderTargetView(_backBuffer);
+                _viewport = new Viewport(size.Width, size.Height);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex.Message);
+                FlushMessageQueue();
+                throw;
+            }
         }
+
+        internal static void Resize(Size size) => Instance?.ResizeBuffers(size);
 
         public void Dispose()
         {
             if (!_disposed)
             {
-                _rasterizerState?.Dispose();
-                _swapChain?.Dispose();
+                _rasterizerState?.Release();
+                _swapChain?.Release();
 
-                Deferred?.Dispose();
-                Immediate?.Dispose();
+                Deferred?.Release();
+                Immediate?.Release();
 
+                _infoQueue?.Release();
                 uint dcount = Device?.Release() ?? 0;
                 uint fcount = _factory?.Release() ?? 0;
 
@@ -155,14 +189,49 @@ namespace GTool.Graphics
             }
         }
 
-        internal void Present()
+        public void FlushMessageQueue()
+        {
+            if (IsDebug && _infoQueue != null)
+            {
+                ulong stored = _infoQueue.NumStoredMessages;
+                for (ulong i = 0; i < stored; i++)
+                {
+                    Message msg = _infoQueue.GetMessage(i);
+
+                    switch (msg.Severity)
+                    {
+                        case MessageSeverity.Corruption:
+                            Log.Fatal("D3D11 Error: [{@Severity}/{@Catergory}]: {@Message}", msg.Severity, msg.Category, msg.Description);
+                            break;
+                        case MessageSeverity.Error:
+                            Log.Error("D3D11 Error: [{@Severity}/{@Catergory}]: {@Message}", msg.Severity, msg.Category, msg.Description);
+                            break;
+                        case MessageSeverity.Warning:
+                            Log.Warning("D3D11 Error: [{@Severity}/{@Catergory}]: {@Message}", msg.Severity, msg.Category, msg.Description);
+                            break;
+                        case MessageSeverity.Info:
+                            Log.Information("D3D11 Error: [{@Severity}/{@Catergory}]: {@Message}", msg.Severity, msg.Category, msg.Description);
+                            break;
+                        case MessageSeverity.Message:
+                            Log.Debug("D3D11 Error: [{@Severity}/{@Catergory}]: {@Message}", msg.Severity, msg.Category, msg.Description);
+                            break;
+                        default:
+                            break;
+                    }
+                }
+
+                _infoQueue.ClearStoredMessages();
+            }
+        }
+
+        public void Present()
         {
             try
             {
                 ID3D11CommandList? cmd = Deferred?.FinishCommandList(false);
                 if (cmd != null)
                 {
-                    Immediate?.ExecuteCommandList(cmd, true);
+                    Immediate?.ExecuteCommandList(cmd, false);
                     cmd.Release();
                 }
             }
@@ -171,7 +240,7 @@ namespace GTool.Graphics
                 Log.Error("Exception occured in present call! Message: {@Message}", ex.Message);
             }
 
-            Result? res = _swapChain?.Present(1);
+            Result? res = _swapChain?.Present(1, PresentFlags.None, new PresentParameters { DirtyRectangles = [] });
             if (res != null && res.Value.Failure && res.Value.Code == unchecked((int)0x887A0005)/*DXGI_ERROR_DEVICE_REMOVED*/)
             {
                 HandleDeviceLost();
@@ -180,8 +249,6 @@ namespace GTool.Graphics
 
             //theoreticly the next frame begins here..
             Deferred?.RSSetState(_rasterizerState);
-            RestoreDefaultDrawViews();
-            Deferred?.ClearRenderTargetView(_backBufferView, new Color4(1.0f, 0.5f, 0.0f, 1.0f));
         }
 
         private void HandleDeviceLost()
@@ -210,13 +277,24 @@ namespace GTool.Graphics
             Instance.Deferred?.PSSetShader(pshader);
             Instance.Deferred?.IASetInputLayout(layout);
         }
-
+        
         public static void VSetConstantBuffer<TType>(Buffer<TType>? buffer, int slot = 0)
             where TType : unmanaged => Instance.Deferred?.VSSetConstantBuffer(slot, buffer?.InternalBuffer);
         public static void PSetConstantBuffer<TType>(Buffer<TType>? buffer, int slot = 0)
             where TType : unmanaged => Instance.Deferred?.PSSetConstantBuffer(slot, buffer?.InternalBuffer);
 
+        public static void VSetShaderResource(ID3D11ShaderResourceView? resourceView, int slot = 0)
+            => Instance.Deferred?.VSSetShaderResource(slot, resourceView);
+        public static void PSetShaderResource(ID3D11ShaderResourceView? resourceView, int slot = 0)
+            => Instance.Deferred?.PSSetShaderResource(slot, resourceView);
+
+        public static void VSetSampler(ID3D11SamplerState? samplerState, int slot = 0)
+            => Instance.Deferred?.VSSetSampler(slot, samplerState);
+        public static void PSetSampler(ID3D11SamplerState? samplerState, int slot = 0)
+            => Instance.Deferred?.PSSetSampler(slot, samplerState);
+
         public static void SetTopology(PrimitiveTopology topology) => Instance.Deferred?.IASetPrimitiveTopology(topology);
+        public static void SetBlendState(ID3D11BlendState? blendState) => Instance.Deferred?.OMSetBlendState(blendState);
 
         public static void RestoreDefaultDrawViews()
         {
@@ -224,11 +302,70 @@ namespace GTool.Graphics
             Instance.Deferred?.OMSetRenderTargets(Instance._backBufferView);
         }
 
-        internal static void FillShaderData(ref Shader.ShaderDataAsset data, byte[] vbytes, byte[] pbytes, InputElementDescription[] inputs)
+        public static void FillShaderData(ref Shader.ShaderDataAsset data, byte[] vbytes, byte[] pbytes, InputElementDescription[] inputs)
         {
             data.VertexShader = Instance.Device?.CreateVertexShader(vbytes);
             data.PixelShader = Instance.Device?.CreatePixelShader(pbytes);
             data.InputLayout = Instance.Device?.CreateInputLayout(inputs, vbytes);
+        }
+
+        public static void FillFontData(ref Font.FontDataAsset data, byte[] buffer, int width, int height)
+        {
+            data.Texture = Instance.Device?.CreateTexture2D(new Texture2DDescription
+            {
+                Width = width,
+                Height = height,
+                MipLevels = 1,
+                ArraySize = 1,
+                Format = Format.R8_UNorm,
+                SampleDescription = SampleDescription.Default,
+                Usage = ResourceUsage.Default,
+                BindFlags = BindFlags.ShaderResource,
+                CPUAccessFlags = CpuAccessFlags.None,
+                MiscFlags = ResourceOptionFlags.None
+            });
+
+            data.ResourceView = Instance.Device?.CreateShaderResourceView(data.Texture, null);
+
+            data.SamplerState = Instance.Device?.CreateSamplerState(new SamplerDescription
+            {
+                Filter = Filter.MinMagMipPoint,
+                AddressU = TextureAddressMode.Wrap,
+                AddressV = TextureAddressMode.Wrap,
+                AddressW = TextureAddressMode.Wrap,
+                MaxLOD = 1,
+                MinLOD = 0,
+                MipLODBias = 0.0f,
+                BorderColor = new Color4(0.0f),
+                ComparisonFunc = ComparisonFunction.Never,
+                MaxAnisotropy = 0,
+            });
+
+            if (data.Texture != null)
+                Instance.Deferred?.UpdateSubresource(buffer, data.Texture, 0, width);
+        }
+
+        internal static ID3D11BlendState? CreateBlendState(Blend source, Blend sourceAlpha, Blend dest, Blend destAlpha, BlendOperation op, BlendOperation alphaOp)
+        {
+            return Instance.Device?.CreateBlendState(new BlendDescription
+            {
+                AlphaToCoverageEnable = false,
+                IndependentBlendEnable = false,
+                RenderTarget = new BlendDescription.RenderTarget__FixedBuffer
+                {
+                    e0 = new RenderTargetBlendDescription
+                    {
+                        BlendEnable = true,
+                        BlendOperation = op,
+                        BlendOperationAlpha = alphaOp,
+                        DestinationBlend = dest,
+                        DestinationBlendAlpha = destAlpha,
+                        SourceBlend = source,
+                        SourceBlendAlpha = sourceAlpha,
+                        RenderTargetWriteMask = ColorWriteEnable.All
+                    }
+                }
+            });
         }
     }
 

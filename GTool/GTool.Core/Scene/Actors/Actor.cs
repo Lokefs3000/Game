@@ -9,6 +9,8 @@ namespace GTool.Scene.Actors
 
         public Transform Transform { get; private set; }
 
+        public List<Actor> Children { get; private set; } = new List<Actor>();
+
         public Actor()
         {
             Transform = new Transform();

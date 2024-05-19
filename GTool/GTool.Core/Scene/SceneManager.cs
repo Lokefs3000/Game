@@ -11,9 +11,9 @@ namespace GTool.Scene
         private List<Scene> _loadedScenes = new List<Scene>();
         public List<Scene> Scenes { get => _loadedScenes; }
 
-        internal SceneManager()
+        public SceneManager()
         {
-
+            New("Untitled");
         }
 
         public void Dispose()
@@ -25,7 +25,7 @@ namespace GTool.Scene
 
         public Scene New(string name)
         {
-            Scene scene = new Scene();
+            Scene scene = new Scene(name);
             //if (name != string.Empty)
             _loadedScenes.Add(scene);
             return scene;

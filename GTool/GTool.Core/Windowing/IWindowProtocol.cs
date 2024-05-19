@@ -1,4 +1,5 @@
-﻿using System;
+﻿using GTool.Input;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,7 +16,15 @@ namespace GTool.Windowing
         public void BindClosed(WindowEvent @event);
         public void UnbindClosed(WindowEvent @event);
 
+        public event WindowResizeEvent? WindowResize;
+
+        public event MouseMoveEvent? MouseMove;
+        public event MouseButtonEvent? MouseButton;
+
         public delegate void WindowEvent(nint window);
+        public delegate void WindowResizeEvent(float width, float height);
+        public delegate void MouseMoveEvent(float x, float y);
+        public delegate void MouseButtonEvent(InputManager.MouseButton button, bool state);
     }
 
     public struct WindowCreationSettings

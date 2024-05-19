@@ -1,4 +1,6 @@
-﻿using System;
+﻿using GTool.Graphics;
+using GTool.Interface;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -34,16 +36,30 @@ namespace GTool.Windowing
 
             _nativeWindow = _protocol.CreateWindow(creationSettings);
 
-            _protocol?.BindClosed(WindowClosedEv);
+            _protocol.BindClosed(WindowClosedEv);
+            _protocol.WindowResize += OnResize;
+        }
+
+        private void OnResize(float width, float height)
+        {
+            WindowSize = new Size(width, height);
+
+            GraphicsDevice.Resize(WindowSize);
+            Gui.Resize(WindowSize);
         }
 
         public virtual void Dispose()
         {
             if (!_disposed)
             {
-                _protocol?.UnbindClosed(WindowClosedEv);
+                if (_protocol != null)
+                {
+                    _protocol.UnbindClosed(WindowClosedEv);
+                    _protocol.WindowResize -= OnResize;
 
-                _protocol?.DestroyWindow(_nativeWindow);
+                    _protocol.DestroyWindow(_nativeWindow);
+                }
+
                 _disposed = true;
             }
 
@@ -57,5 +73,7 @@ namespace GTool.Windowing
             if (window == _nativeWindow)
                 _isWindowClosed = true;
         }
+
+        internal static IWindowProtocol? GetProtocol() => _protocol;
     }
 }

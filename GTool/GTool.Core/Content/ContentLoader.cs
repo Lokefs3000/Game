@@ -41,14 +41,19 @@ namespace GTool.Content
 {
     public class ContentLoader
     {
-        private static readonly ContentLoader _instance = new ContentLoader();
+        protected static ContentLoader _instance;
 
         private List<Stream?> _streams = new List<Stream>();
         private Dictionary<string, FileData> _files = new Dictionary<string, FileData>();
 
         public const int Version = 1;
 
-        internal void Init(Assembly assembly, string name)
+        public ContentLoader()
+        {
+            _instance = this;
+        }
+
+        protected virtual void Append(Assembly assembly, string name)
         {
             _streams.Add(assembly.GetManifestResourceStream(name));
             Debug.Assert(_streams.Last() != null);
@@ -101,11 +106,11 @@ namespace GTool.Content
             }
         }
 
-        public static byte[] GetBytes(string path)
+        protected virtual byte[] GetFileBytes(string path)
         {
-            if (_instance._files.TryGetValue(path, out FileData data))
+            if (_files.TryGetValue(path, out FileData data))
             {
-                Stream? stream = _instance._streams[data.StreamId];
+                Stream? stream = _streams[data.StreamId];
                 if (stream == null)
                     throw new Exception("Too lazy to give actual errors currently..");
 
@@ -136,10 +141,11 @@ namespace GTool.Content
             return Array.Empty<byte>();
         }
 
-        public static string GetString(string path) => Encoding.UTF8.GetString(GetBytes(path));
+        public static byte[] GetBytes(string path) => _instance.GetFileBytes(path);
+        public static string GetString(string path) => Encoding.UTF8.GetString(_instance.GetFileBytes(path));
 
-        public static void Initialize(string name) => _instance.Init(Assembly.GetEntryAssembly(), name);
-        public static void Initialize(string name, Assembly assembly) => _instance.Init(assembly, name);
+        public static void AppendFileSystem(string name) => _instance.Append(Assembly.GetEntryAssembly(), name);
+        public static void AppendFileSystem(string name, Assembly assembly) => _instance.Append(assembly, name);
 
         internal static void Dispose()
         {

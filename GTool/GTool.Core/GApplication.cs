@@ -1,7 +1,7 @@
 ﻿using GTool.Content;
 using GTool.Debugging;
 using GTool.Graphics;
-using GTool.Graphics.GUI;
+using GTool.Interface;
 using GTool.Scene;
 using GTool.Windowing;
 using Serilog;
@@ -26,8 +26,8 @@ namespace GTool
                 Window = this
             });
 
-            ContentLoader.Initialize("GTool.res.Content.bcf", Assembly.GetExecutingAssembly());
-            ContentLoader.Initialize(contentName);
+            ContentLoader.AppendFileSystem("GTool.res.Content.bcf", Assembly.GetExecutingAssembly());
+            //ContentLoader.Initialize(contentName);
 
             Gui.Initialize();
             Gui.Resize(WindowSize);
@@ -42,7 +42,7 @@ namespace GTool
             Device.Dispose();
             base.Dispose();
             SceneManager.Dispose();
-            ContentManager.Dispose();
+            //ContentManager.Dispose();
             ContentLoader.Dispose();
             //Logger.Dispose(); //crashes AOT (ilc.exe) for some reason??
         }

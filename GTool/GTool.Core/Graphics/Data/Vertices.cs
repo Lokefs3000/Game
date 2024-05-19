@@ -22,5 +22,6 @@ namespace GTool.Graphics.Data
         public Vector2 Position;
         public Vector2 UV;
         public uint Color;
+        public float Attribute;
     }
 }
