@@ -11,8 +11,7 @@ namespace GTool.Interface
 {
     public class GuiState
     {
-        private Dictionary<string, ButtonState> _buttonState;
-        private Dictionary<string, TreeState> _treeState;
+        private Dictionary<string, ButtonState> _buttonState = new Dictionary<string, ButtonState>();
 
         internal GuiState()
         {

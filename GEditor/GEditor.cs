@@ -23,7 +23,8 @@ namespace GEditor
 
         private Font _primaryFont;
 
-        private string _projectDir;
+        public string ProjectDir { get; private set; }
+        public string ProjectName { get; private set; }
 
         private MenubarVisual _menubar;
         private HierchyVisual _hierchy;
@@ -38,7 +39,8 @@ namespace GEditor
                 .WriteTo.Console()
                 .CreateLogger();
 
-            _projectDir = Path.GetFullPath(project);
+            ProjectDir = Path.GetFullPath(project);
+            ProjectName = ProjectDir.Substring(ProjectDir.LastIndexOf(Path.DirectorySeparatorChar) + 1);
 
             Device = new GraphicsDevice(new GraphicsDeviceSettings
             {
@@ -48,7 +50,7 @@ namespace GEditor
             Loader = new ContentLoader();
             ContentLoader.AppendFileSystem("res/Engine");
             ContentLoader.AppendFileSystem("res/Editor");
-            ContentLoader.AppendFileSystem(_projectDir);
+            ContentLoader.AppendFileSystem(ProjectDir);
 
             Content = new ContentManager();
 
@@ -63,7 +65,7 @@ namespace GEditor
 
             _menubar = new MenubarVisual();
             _hierchy = new HierchyVisual();
-            _filesystem = new FilesystemVisual();
+            _filesystem = new FilesystemVisual(this);
             _bottomTabs = new BottomTabsVisual();
             _properties = new PropertiesVisual();
         }
