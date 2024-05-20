@@ -31,6 +31,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="AssimpNet" Version="4.1.0" />
     <PackageReference Include="SpaceWizards.SharpFont" Version="1.0.2" />
     <PackageReference Include="Vortice.D3DCompiler" Version="3.5.0" />
   </ItemGroup>
